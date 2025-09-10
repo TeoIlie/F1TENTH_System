@@ -2,6 +2,9 @@
 
 Drivers onboard f1tenth race cars. This branch is under development for migration to ROS2. See the [documentation of F1TENTH](https://f1tenth.readthedocs.io/en/foxy_test/getting_started/firmware/index.html) on how to get started.
 
+## Version notes
+Branch `main` is a copy of `f1tenth_system` branch `humble_devel` with modifications for my car.
+
 ## Cloning submodules
 If you clone this repository, make sure to clone the submodules as well. You can do this by running:
 
