@@ -50,6 +50,62 @@ nmap -sn
 
 If you have a SICK lidar connected to the network, you will see the IP address of the lidar in the output.
 
+## Intel RealSense D435 Camera Setup
+
+The system now includes support for Intel RealSense D435 camera with remote viewing capabilities.
+
+### Camera Launch
+
+Launch the full F1TENTH system with camera support:
+
+```bash
+ros2 launch f1tenth_stack camera_bringup_launch.py
+```
+
+This launch file includes:
+- All standard F1TENTH components (VESC, joystick, ackermann_mux, etc.)
+- RealSense D435 camera driver
+- Web video server for HTTP streaming
+- Rosbridge server for WebSocket connectivity
+
+### Remote Video Viewing
+
+**From any device on the same network:**
+
+1. **Web Browser Access**: Navigate to `http://[JETSON_IP]:8080`
+   - Replace `[JETSON_IP]` with your Jetson's IP address
+   - Available streams:
+     - Color camera: Click "Stream" next to `/camera/camera/color/image_raw`
+     - Depth camera: Click "Stream" next to `/camera/camera/depth/image_rect_raw`
+
+2. **Find Jetson IP**: Run `hostname -I` on the Jetson to get its IP address
+
+3. **Example**: If Jetson IP is `10.216.122.75`, access `http://10.216.122.75:8080`
+
+### Testing Camera Setup
+
+**Verify camera connection:**
+```bash
+# Check if camera is detected
+rs-enumerate-devices
+
+# Test camera topics (after launching camera_bringup_launch.py)
+ros2 topic list | grep camera
+ros2 topic echo /camera/camera/color/image_raw --max-count 1
+```
+
+**Test web video server:**
+```bash
+# Check if web server is accessible
+curl -s http://localhost:8080 | grep "Available ROS Image Topics"
+```
+
+### Camera Topics Published
+- `/camera/camera/color/image_raw`: Color image stream (640×480@15fps)
+- `/camera/camera/depth/image_rect_raw`: Depth image stream (640×480@15fps)
+- `/camera/camera/color/camera_info`: Camera calibration info
+- `/camera/camera/depth/camera_info`: Depth camera calibration info
+
 ## Topics
 
 ### Topics that the driver stack subscribe to
