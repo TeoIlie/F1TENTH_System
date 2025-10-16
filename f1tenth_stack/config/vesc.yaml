@@ -7,8 +7,8 @@
     speed_to_erpm_offset: 0.0
 
     # servo value (0 to 1) =  steering_angle_to_servo_gain * steering angle (radians) + steering_angle_to_servo_offset
-    steering_angle_to_servo_gain: -0.9558
-    steering_angle_to_servo_offset: 0.475
+    steering_angle_to_servo_gain: -0.696
+    steering_angle_to_servo_offset: 0.475 # centre position found by trial and error
 
     port: /dev/sensors/vesc
     duty_cycle_min: 0.0
@@ -21,8 +21,16 @@
     speed_max: 300000.0
     position_min: 0.0
     position_max: 0.0
-    servo_min: 0.15
-    servo_max: 0.85
+
+    # LEFT
+    servo_min: 0.10 # corresponds to max left steering clipping  
+      # turning radius left is 1.1 m 
+      # given wheelbase of 0.33 m, this means max left steering angle is 0.56 rad
+
+    # RIGHT
+    servo_max: 0.85 # corresponds to max right steering clipping
+      # turning radius right is 1.2 m
+      # given wheelbase of 0.33m, this means max right steering angle is 0.52 rad
 
 # No longer needed, all parameters are shared
 # ackermann_to_vesc_node:
@@ -35,8 +43,8 @@ vesc_to_odom_node:
     # publish odom to base link tf
     publish_tf: true
     use_servo_cmd_to_calc_angular_velocity: true
-    # car wheelbase is about 25cm
-    wheelbase: .25
+    # car wheelbase is about 33 cm
+    wheelbase: .33
 
 # No longer needed, all parameters are shared
 # vesc_driver:

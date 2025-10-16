@@ -220,3 +220,7 @@ curl -s http://localhost:8080 | grep "Available ROS Image Topics"
 3. Subscribes to:
    - topic described in rpm_input_topic
    - topic described in servo_input_topic
+
+## Scripts
+1. `battery_monitor.sh` reads the voltage when the `/sensors/core` topic is publishing, and shuts down the Jetson as battery dies and voltage sags, to prevent Jetson losing power
+2. `run_steering_checker.sh` uses `check_steering_angle.py` to print out the steering angle that odometry calculates - useful for tuning the steering gain on a servo
