@@ -7,9 +7,9 @@
     speed_to_erpm_offset: 0.0
 
     # servo value (0 to 1) =  steering_angle_to_servo_gain * steering angle (radians) + steering_angle_to_servo_offset
-    steering_angle_to_servo_gain: -0.696
-    steering_angle_to_servo_offset: 0.475 # centre position found by trial and error
-
+    steering_angle_to_servo_gain: -0.673
+    steering_angle_to_servo_offset: 0.512 # centre position found by trial and error
+    
     port: /dev/sensors/vesc
     duty_cycle_min: 0.0
     duty_cycle_max: 0.0
@@ -23,14 +23,14 @@
     position_max: 0.0
 
     # LEFT
-    servo_min: 0.10 # corresponds to max left steering clipping  
+    servo_min: 0.169 # corresponds to max left steering clipping  
       # turning radius left is 1.1 m 
-      # given wheelbase of 0.33 m, this means max left steering angle is 0.56 rad
+      # given wheelbase of 0.33 m, this means max left steering angle is 0.56 rad in abs value
 
     # RIGHT
-    servo_max: 0.85 # corresponds to max right steering clipping
+    servo_max: 0.855 # corresponds to max right steering clipping
       # turning radius right is 1.2 m
-      # given wheelbase of 0.33m, this means max right steering angle is 0.52 rad
+      # given wheelbase of 0.33m, this means max right steering angle is 0.52 rad in abs value
 
 # No longer needed, all parameters are shared
 # ackermann_to_vesc_node:
