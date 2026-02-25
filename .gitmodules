@@ -9,3 +9,7 @@
 	path = teleop_tools
 	url = https://github.com/f1tenth/teleop_tools.git
 	branch = humble-devel
+[submodule "recovery_controller"]
+	path = recovery_controller
+	url = https://github.com/TeoIlie/recovery_controller.git
+	branch = main
