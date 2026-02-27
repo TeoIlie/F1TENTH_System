@@ -50,10 +50,22 @@ def generate_launch_description():
         ]
     )
 
-    # TODO Phase 1: add recovery_node here once recovery_controller package is built
+    recovery_config = os.path.join(
+        get_package_share_directory('recovery_controller'),
+        'config',
+        'recovery.yaml'
+    )
+
+    recovery_node = Node(
+        package='recovery_controller',
+        executable='recovery_node',
+        name='recovery_node',
+        parameters=[recovery_config]
+    )
 
     ld = LaunchDescription([vicon_server_la])
     ld.add_action(base_bringup)
     ld.add_action(vrpn_node)
+    ld.add_action(recovery_node)
 
     return ld
