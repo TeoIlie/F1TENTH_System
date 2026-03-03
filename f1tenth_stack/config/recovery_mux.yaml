@@ -4,7 +4,7 @@ ackermann_mux:
       navigation:
         topic   : drive
         timeout : 0.2
-        priority: 10
+        priority: 150
       joystick:
         topic   : teleop
         timeout : 0.2
