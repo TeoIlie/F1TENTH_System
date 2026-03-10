@@ -24,20 +24,10 @@ def generate_launch_description():
         "vicon_server"
     ]
 
-    debug_default = str(
-        recovery_params["recovery_node"]["ros__parameters"]["debug"]
-    ).lower()
-
     vicon_server_la = DeclareLaunchArgument(
         "vicon_server",
         default_value=vicon_server_default,
         description="IP address of the Vicon VRPN server",
-    )
-
-    debug_la = DeclareLaunchArgument(
-        "debug",
-        default_value=debug_default,
-        description="Disable autonomous drive and ebrake publishing for debugging",
     )
 
     # Include base bringup (no lidar), overriding mux config with recovery_mux.yaml
@@ -67,14 +57,18 @@ def generate_launch_description():
         ],
     )
 
+    vesc_config = os.path.join(
+        get_package_share_directory("f1tenth_stack"), "config", "vesc.yaml"
+    )
+
     recovery_node = Node(
         package="recovery_controller",
         executable="recovery_node",
         name="recovery_node",
-        parameters=[recovery_config, {"debug": LaunchConfiguration("debug")}],
+        parameters=[vesc_config, recovery_config],
     )
 
-    ld = LaunchDescription([vicon_server_la, debug_la])
+    ld = LaunchDescription([vicon_server_la])
     ld.add_action(base_bringup)
     ld.add_action(vrpn_node)
     ld.add_action(recovery_node)
