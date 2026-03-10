@@ -30,101 +30,100 @@ from launch_xml.launch_description_sources import XMLLaunchDescriptionSource
 from ament_index_python.packages import get_package_share_directory
 import os
 
+
 def generate_launch_description():
     joy_teleop_config = os.path.join(
-        get_package_share_directory('f1tenth_stack'),
-        'config',
-        'joy_teleop.yaml'
+        get_package_share_directory("f1tenth_stack"), "config", "joy_teleop.yaml"
     )
     vesc_config = os.path.join(
-        get_package_share_directory('f1tenth_stack'),
-        'config',
-        'vesc.yaml'
+        get_package_share_directory("f1tenth_stack"), "config", "vesc.yaml"
     )
     sensors_config = os.path.join(
-        get_package_share_directory('f1tenth_stack'),
-        'config',
-        'sensors.yaml'
+        get_package_share_directory("f1tenth_stack"), "config", "sensors.yaml"
     )
     mux_config = os.path.join(
-        get_package_share_directory('f1tenth_stack'),
-        'config',
-        'mux.yaml'
+        get_package_share_directory("f1tenth_stack"), "config", "mux.yaml"
     )
 
     joy_la = DeclareLaunchArgument(
-        'joy_config',
+        "joy_config",
         default_value=joy_teleop_config,
-        description='Descriptions for joy and joy_teleop configs')
+        description="Descriptions for joy and joy_teleop configs",
+    )
     vesc_la = DeclareLaunchArgument(
-        'vesc_config',
+        "vesc_config",
         default_value=vesc_config,
-        description='Descriptions for vesc configs')
+        description="Descriptions for vesc configs",
+    )
     sensors_la = DeclareLaunchArgument(
-        'sensors_config',
+        "sensors_config",
         default_value=sensors_config,
-        description='Descriptions for sensor configs')
+        description="Descriptions for sensor configs",
+    )
     mux_la = DeclareLaunchArgument(
-        'mux_config',
+        "mux_config",
         default_value=mux_config,
-        description='Descriptions for ackermann mux configs')
+        description="Descriptions for ackermann mux configs",
+    )
 
     ld = LaunchDescription([joy_la, vesc_la, sensors_la, mux_la])
 
     joy_node = Node(
-        package='joy',
-        executable='joy_node',
-        name='joy',
-        parameters=[LaunchConfiguration('joy_config')]
+        package="joy",
+        executable="joy_node",
+        name="joy",
+        parameters=[LaunchConfiguration("joy_config")],
     )
     joy_teleop_node = Node(
-        package='joy_teleop',
-        executable='joy_teleop',
-        name='joy_teleop',
-        parameters=[LaunchConfiguration('joy_config')]
+        package="joy_teleop",
+        executable="joy_teleop",
+        name="joy_teleop",
+        parameters=[LaunchConfiguration("joy_config")],
     )
     ackermann_to_vesc_node = Node(
-        package='vesc_ackermann',
-        executable='ackermann_to_vesc_node',
-        name='ackermann_to_vesc_node',
-        parameters=[LaunchConfiguration('vesc_config')]
+        package="vesc_ackermann",
+        executable="ackermann_to_vesc_node",
+        name="ackermann_to_vesc_node",
+        parameters=[LaunchConfiguration("vesc_config")],
     )
     vesc_to_odom_node = Node(
-        package='vesc_ackermann',
-        executable='vesc_to_odom_node',
-        name='vesc_to_odom_node',
-        parameters=[LaunchConfiguration('vesc_config')]
+        package="vesc_ackermann",
+        executable="vesc_to_odom_node",
+        name="vesc_to_odom_node",
+        parameters=[LaunchConfiguration("vesc_config")],
     )
     vesc_driver_node = Node(
-        package='vesc_driver',
-        executable='vesc_driver_node',
-        name='vesc_driver_node',
-        parameters=[LaunchConfiguration('vesc_config')]
+        package="vesc_driver",
+        executable="vesc_driver_node",
+        name="vesc_driver_node",
+        parameters=[LaunchConfiguration("vesc_config")],
     )
     throttle_interpolator_node = Node(
-        package='f1tenth_stack',
-        executable='throttle_interpolator',
-        name='throttle_interpolator',
-        parameters=[LaunchConfiguration('vesc_config')]
+        package="f1tenth_stack",
+        executable="throttle_interpolator",
+        name="throttle_interpolator",
+        parameters=[LaunchConfiguration("vesc_config")],
     )
     sick_node = Node(
-        package='sick_scan_xd',
-        executable='sick_generic_caller',
-        name='sick_node',
-        arguments=["/opt/ros/humble/share/sick_scan_xd/launch/sick_tim_5xx.launch"] # Be sure to update this to point to the launch folder's update .launch file
+        package="sick_scan_xd",
+        executable="sick_generic_caller",
+        name="sick_node",
+        arguments=[
+            "/opt/ros/humble/share/sick_scan_xd/launch/sick_tim_5xx.launch"
+        ],  # Be sure to update this to point to the launch folder's update .launch file
     )
     ackermann_mux_node = Node(
-        package='ackermann_mux',
-        executable='ackermann_mux',
-        name='ackermann_mux',
-        parameters=[LaunchConfiguration('mux_config')],
-        remappings=[('ackermann_cmd_out', 'ackermann_drive')]
+        package="ackermann_mux",
+        executable="ackermann_mux",
+        name="ackermann_mux",
+        parameters=[LaunchConfiguration("mux_config")],
+        remappings=[("ackermann_cmd_out", "ackermann_drive")],
     )
     static_tf_node = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='static_baselink_to_laser',
-        arguments=['0.27', '0.0', '0.11', '0.0', '0.0', '0.0', 'base_link', 'laser']
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name="static_baselink_to_laser",
+        arguments=["0.27", "0.0", "0.11", "0.0", "0.0", "0.0", "base_link", "laser"],
     )
 
     # finalize
