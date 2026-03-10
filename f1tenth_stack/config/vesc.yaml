@@ -50,6 +50,15 @@ vesc_to_odom_node:
 # vesc_driver:
 #   ros__parameters:
 
+vesc_battery_monitor:
+  ros__parameters:
+    # voltage threshold for ROS shutdown (in Volts)
+    voltage_threshold: 10.5
+    # duration voltage must stay below threshold before shutdown (in seconds)
+    check_duration: 1.0
+    # voltage threshold for warnings (in Volts)
+    warning_threshold: 10.8
+
 throttle_interpolator:
   ros__parameters:
     rpm_input_topic: commands/motor/unsmoothed_speed
