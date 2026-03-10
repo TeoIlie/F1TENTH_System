@@ -1,13 +1,14 @@
 [submodule "vesc"]
 	path = vesc
-	url = https://github.com/f1tenth/vesc.git
+	url = https://github.com/TeoIlie/vesc
 	branch = humble
 [submodule "ackermann_mux"]
 	path = ackermann_mux
-	url = https://github.com/f1tenth/ackermann_mux.git
+	url = https://github.com/TeoIlie/ackermann_mux
+	branch = foxy-devel
 [submodule "teleop_tools"]
 	path = teleop_tools
-	url = https://github.com/f1tenth/teleop_tools.git
+	url = https://github.com/TeoIlie/teleop_tools
 	branch = humble-devel
 [submodule "recovery_controller"]
 	path = recovery_controller
