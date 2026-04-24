@@ -22,8 +22,11 @@
 
 from launch import LaunchDescription
 from launch_ros.actions import Node
+from launch_ros.descriptions import ParameterValue
 from launch.substitutions import Command
 from launch.substitutions import LaunchConfiguration
+from launch.substitutions import PythonExpression
+from launch.conditions import IfCondition, UnlessCondition
 from launch.actions import DeclareLaunchArgument
 from launch.actions import IncludeLaunchDescription
 from launch_xml.launch_description_sources import XMLLaunchDescriptionSource
@@ -65,8 +68,16 @@ def generate_launch_description():
         default_value=mux_config,
         description="Descriptions for ackermann mux configs",
     )
+    const_v_la = DeclareLaunchArgument(
+        "const_v",
+        default_value="0.0",
+        description="Constant forward velocity (m/s) published by joy_teleop human_control. 0.0 = use joystick speed axis.",
+    )
 
-    ld = LaunchDescription([joy_la, vesc_la, sensors_la, mux_la])
+    ld = LaunchDescription([joy_la, vesc_la, sensors_la, mux_la, const_v_la])
+
+    const_v = LaunchConfiguration("const_v")
+    use_const_v = PythonExpression(["float('", const_v, "') != 0.0"])
 
     joy_node = Node(
         package="joy",
@@ -79,6 +90,22 @@ def generate_launch_description():
         executable="joy_teleop",
         name="joy_teleop",
         parameters=[LaunchConfiguration("joy_config")],
+        condition=UnlessCondition(use_const_v),
+    )
+    joy_teleop_const_v_node = Node(
+        package="joy_teleop",
+        executable="joy_teleop",
+        name="joy_teleop",
+        parameters=[
+            LaunchConfiguration("joy_config"),
+            {
+                "human_control.axis_mappings.drive-speed.scale": 0.0,
+                "human_control.axis_mappings.drive-speed.offset": ParameterValue(
+                    const_v, value_type=float
+                ),
+            },
+        ],
+        condition=IfCondition(use_const_v),
     )
     ackermann_to_vesc_node = Node(
         package="vesc_ackermann",
@@ -122,6 +149,7 @@ def generate_launch_description():
     # finalize
     ld.add_action(joy_node)
     ld.add_action(joy_teleop_node)
+    ld.add_action(joy_teleop_const_v_node)
     ld.add_action(ackermann_to_vesc_node)
     ld.add_action(vesc_to_odom_node)
     ld.add_action(vesc_driver_node)
