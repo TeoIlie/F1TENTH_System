@@ -30,6 +30,12 @@ def generate_launch_description():
         description="IP address of the Vicon VRPN server",
     )
 
+    const_v_la = DeclareLaunchArgument(
+        "const_v",
+        default_value="0.0",
+        description="Constant forward velocity (m/s) for joy_teleop human_control. 0.0 = use joystick speed axis.",
+    )
+
     # Include base bringup (no lidar), overriding mux config with recovery_mux.yaml
     # which adds the ebrake topic at priority 200
     base_bringup = IncludeLaunchDescription(
@@ -40,7 +46,10 @@ def generate_launch_description():
                 "no_lidar_bringup_launch.py",
             )
         ),
-        launch_arguments={"mux_config": recovery_mux_config}.items(),
+        launch_arguments={
+            "mux_config": recovery_mux_config,
+            "const_v": LaunchConfiguration("const_v"),
+        }.items(),
     )
 
     # Vicon pose source — publishes /vrpn_mocap/<rigid_body_name>/pose (PoseStamped)
@@ -68,7 +77,7 @@ def generate_launch_description():
         parameters=[vesc_config, recovery_config],
     )
 
-    ld = LaunchDescription([vicon_server_la])
+    ld = LaunchDescription([vicon_server_la, const_v_la])
     ld.add_action(base_bringup)
     ld.add_action(vrpn_node)
     ld.add_action(recovery_node)
