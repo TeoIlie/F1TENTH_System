@@ -5,6 +5,8 @@ Extracts control commands, Vicon ground truth, VESC telemetry, and odometry
 from a bag recorded with:
     cd ~/f1tenth_ws/bags
     ros2 bag record /ackermann_cmd /vrpn_mocap/f110/pose /vrpn_mocap/f110/twist /sensors/core /odom
+        OR
+    ros2 bag record -a <-o my_bag_name>
 
 Usage:
     python3 bag_to_npz.py <bag_dir> [-o output.npz]
@@ -102,7 +104,7 @@ def read_bag(bag_dir: str) -> dict[str, list[tuple[float, object]]]:
 # ---------------------------------------------------------------------------
 
 # VESC config (from vesc.yaml)
-SPEED_TO_ERPM_GAIN = 4600.0
+SPEED_TO_ERPM_GAIN = 4000.0
 WHEEL_RADIUS = 0.049
 
 
