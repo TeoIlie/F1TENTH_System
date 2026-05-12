@@ -104,7 +104,7 @@ def read_bag(bag_dir: str) -> dict[str, list[tuple[float, object]]]:
 # ---------------------------------------------------------------------------
 
 # VESC config (from vesc.yaml)
-SPEED_TO_ERPM_GAIN = 4000.0
+SPEED_TO_ERPM_GAIN = 4600.0
 WHEEL_RADIUS = 0.049
 
 
