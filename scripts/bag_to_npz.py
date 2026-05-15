@@ -9,7 +9,11 @@ from a bag recorded with:
     ros2 bag record -a <-o my_bag_name>
 
 Usage:
-    python3 bag_to_npz.py <bag_dir> [-o output.npz]
+    python3 bag_to_npz.py <bag_dir_or_parent> [-o output]
+
+Accepts either a single bag directory, or a parent folder containing bags
+nested at any depth (searched recursively for *.db3 files). In batch mode,
+-o is treated as an output directory instead of a base name.
 
 Outputs three files:
     <base>_original.npz  — raw variable-rate data from each topic
@@ -20,9 +24,18 @@ Outputs three files:
 Also prints PASS/WARN validation checks (ZOH fidelity, interpolation error, rates).
 Default base is ~/f1tenth_ws/data/<bag_name> (creates ~/f1tenth_ws/data/ if needed).
 
-Example:
+Examples:
+    # Single bag → ~/f1tenth_ws/data/<bag_name>_{original,100Hz}.npz + summary.png
     python3 bag_to_npz.py ~/f1tenth_ws/bags/rosbag2_2026_04_03-16_18_43
+
+    # Single bag with custom output base
     python3 bag_to_npz.py ~/f1tenth_ws/bags/rosbag2_2026_04_03-16_18_43 -o custom
+
+    # Folder of bags (recursive) → one set of outputs per bag in ~/f1tenth_ws/data/
+    python3 bag_to_npz.py ~/f1tenth_ws/bags
+
+    # Folder of bags with custom output directory
+    python3 bag_to_npz.py ~/f1tenth_ws/bags -o ~/f1tenth_ws/data/session_a
 """
 
 import argparse
@@ -132,14 +145,17 @@ def speed_from_erpm(erpm: float) -> float:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Parse a ROS2 bag into .npz for sim2real comparison"
+        description="Parse a ROS2 bag (or a folder containing bags) into .npz for sim2real comparison"
     )
-    parser.add_argument("bag_dir", help="Path to the ROS2 bag directory")
+    parser.add_argument(
+        "bag_dir",
+        help="Path to a ROS2 bag directory, or a folder containing bags (searched recursively)",
+    )
     parser.add_argument(
         "-o",
         "--output",
         default=None,
-        help="Output base name; produces <base>_original.npz and <base>_100Hz.npz",
+        help="Output base name (single bag) or output directory (multiple bags)",
     )
     parser.add_argument(
         "--no-plot",
@@ -148,8 +164,58 @@ def main():
     )
     args = parser.parse_args()
 
-    print(f"Reading bag from {args.bag_dir} ...")
-    data = read_bag(args.bag_dir)
+    root = Path(args.bag_dir)
+    if not root.exists():
+        sys.exit(f"Path does not exist: {root}")
+
+    bag_dirs = sorted({p.parent for p in root.rglob("*.db3")})
+    if not bag_dirs:
+        sys.exit(f"No ROS2 bags (*.db3) found under {root}")
+
+    # Batch mode = user pointed at a parent folder rather than the bag itself
+    batch_mode = not any(root.glob("*.db3"))
+
+    if batch_mode:
+        print(f"Found {len(bag_dirs)} bag(s) under {root}:")
+        for b in bag_dirs:
+            print(f"  {b}")
+
+    succeeded, failed = 0, []
+    for bag in bag_dirs:
+        output_base = _resolve_output_base(args.output, bag, batch_mode)
+        try:
+            print(f"\n{'=' * 70}\nProcessing {bag}\n{'=' * 70}")
+            process_bag(str(bag), output_base, make_plot=not args.no_plot)
+            succeeded += 1
+        except Exception as e:
+            print(f"  ERROR processing {bag}: {e}")
+            failed.append((bag, str(e)))
+
+    if batch_mode:
+        print(f"\n{'=' * 70}")
+        print(f"Batch complete: {succeeded} succeeded, {len(failed)} failed")
+        for bag, err in failed:
+            print(f"  FAIL {bag}: {err}")
+
+
+def _resolve_output_base(output_arg, bag_dir: Path, batch_mode: bool) -> str:
+    """Compute the output base path for a single bag."""
+    bag_name = bag_dir.resolve().name
+    if output_arg:
+        if batch_mode:
+            out_dir = Path(output_arg)
+            out_dir.mkdir(parents=True, exist_ok=True)
+            return str(out_dir / bag_name)
+        return output_arg.removesuffix(".npz")
+    data_dir = Path.home() / "f1tenth_ws" / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return str(data_dir / bag_name)
+
+
+def process_bag(bag_dir: str, output_base: str, make_plot: bool = True) -> None:
+    """Parse a single ROS2 bag and write _original.npz, _100Hz.npz, _summary.png."""
+    print(f"Reading bag from {bag_dir} ...")
+    data = read_bag(bag_dir)
 
     for topic, msgs in data.items():
         print(f"  {topic}: {len(msgs)} messages")
@@ -161,7 +227,7 @@ def main():
     ]
     missing = [t for t in required_topics if not data[t]]
     if missing:
-        sys.exit(f"Required topics missing from bag: {', '.join(missing)}")
+        raise RuntimeError(f"Required topics missing from bag: {', '.join(missing)}")
 
     # --- Control commands from /ackermann_cmd ---
     cmd_t = np.array([t for t, _ in data["/ackermann_cmd"]])
@@ -222,15 +288,7 @@ def main():
     else:
         print("  WARNING: No /odom messages — odometry will be missing")
 
-    # --- Determine output paths ---
-    if args.output:
-        base = args.output.removesuffix(".npz")
-    else:
-        data_dir = Path.home() / "f1tenth_ws" / "data"
-        data_dir.mkdir(parents=True, exist_ok=True)
-        bag_name = Path(args.bag_dir).resolve().name
-        base = str(data_dir / bag_name)
-
+    base = output_base
     original_path = f"{base}_original.npz"
     resampled_path = f"{base}_100Hz.npz"
 
@@ -351,7 +409,7 @@ def main():
     )
 
     # --- Summary plot ---
-    if not args.no_plot:
+    if make_plot:
         plot_path = f"{base}_summary.png"
         make_summary_plot(
             plot_path=plot_path,
