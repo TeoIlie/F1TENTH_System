@@ -36,10 +36,49 @@ Examples:
 
     # Folder of bags with custom output directory
     python3 bag_to_npz.py ~/f1tenth_ws/bags -o ~/f1tenth_ws/data/session_a
+
+Exported contents and units
+---------------------------
+All timestamps are seconds. In <base>_original.npz each topic keeps its own
+timestamp array (variable rate); in <base>_100Hz.npz everything shares a single
+`t` axis uniformly sampled at 100 Hz and rebased to start at 0.
+
+Control commands (from /ackermann_cmd):
+    cmd_t          — message timestamps [s]              (original only)
+    cmd_speed      — commanded longitudinal speed [m/s]
+    cmd_steer      — commanded steering angle [rad]      (positive = left)
+
+Vicon pose (from /vrpn_mocap/f110/pose, world frame):
+    vicon_t        — message timestamps [s]              (original only)
+    vicon_x        — x position [m]
+    vicon_y        — y position [m]
+    vicon_yaw      — heading [rad], unwrapped (no ±π jumps)
+
+Vicon twist (from /vrpn_mocap/f110/twist, rotated into body frame):
+    twist_t        — message timestamps [s]              (original only)
+    vicon_body_vx  — longitudinal (forward) velocity [m/s]
+    vicon_body_vy  — lateral (left) velocity [m/s]
+    vicon_r        — yaw rate [rad/s] (angular.z, frame-invariant about z)
+
+VESC telemetry (from /sensors/core, present only if topic was recorded):
+    core_t         — message timestamps [s]              (original only)
+    core_speed     — vehicle linear speed [m/s], converted from motor ERPM via
+                     SPEED_TO_ERPM_GAIN=4600 (vesc.yaml). To get wheel angular
+                     velocity in rad/s: omega = core_speed / WHEEL_RADIUS.
+    core_voltage   — VESC input voltage [V]              (original only)
+
+Odometry (from /odom, present only if topic was recorded):
+    odom_t         — message timestamps [s]              (original only)
+    odom_x         — x position [m] (odom frame)
+    odom_y         — y position [m] (odom frame)
+    odom_vx        — body-frame longitudinal velocity [m/s]
+
+In <base>_100Hz.npz, resampled VESC/odom arrays are prefixed `rs_`
+(rs_core_speed, rs_odom_x, rs_odom_y, rs_odom_vx). Commands use zero-order
+hold; pose, twist, and odom use linear interpolation.
 """
 
 import argparse
-import math
 import sqlite3
 import sys
 from pathlib import Path
@@ -118,7 +157,6 @@ def read_bag(bag_dir: str) -> dict[str, list[tuple[float, object]]]:
 
 # VESC config (from vesc.yaml)
 SPEED_TO_ERPM_GAIN = 4600.0
-WHEEL_RADIUS = 0.049
 
 
 def yaw_from_quat(q) -> float:
@@ -128,13 +166,8 @@ def yaw_from_quat(q) -> float:
     return yaw
 
 
-def body_vel(world_vx: float, world_vy: float, yaw: float):
-    """Rotate world-frame velocity into body frame."""
-    c, s = math.cos(yaw), math.sin(yaw)
-    return world_vx * c + world_vy * s, -world_vx * s + world_vy * c
-
-
 def speed_from_erpm(erpm: float) -> float:
+    """v = erpm / SPEED_TO_ERPM_GAIN see https://github.com/TeoIlie/vesc/blob/humble/vesc_ackermann/src/vesc_to_odom.cpp"""
     return erpm / SPEED_TO_ERPM_GAIN
 
 
@@ -262,6 +295,7 @@ def process_bag(bag_dir: str, output_base: str, make_plot: bool = True) -> None:
 
     # --- VESC telemetry from /sensors/core ---
     arrays_to_save = {}
+    core_t = core_speed = core_voltage = None
     if data["/sensors/core"]:
         core_t = np.array([t for t, _ in data["/sensors/core"]])
         core_speed = np.array(
@@ -277,6 +311,7 @@ def process_bag(bag_dir: str, output_base: str, make_plot: bool = True) -> None:
         print("  WARNING: No /sensors/core messages — VESC telemetry will be missing")
 
     # --- Odometry ---
+    odom_t = odom_x = odom_y = odom_vx = None
     if data["/odom"]:
         odom_t = np.array([t for t, _ in data["/odom"]])
         odom_x = np.array([m.pose.pose.position.x for _, m in data["/odom"]])
@@ -394,18 +429,9 @@ def process_bag(bag_dir: str, output_base: str, make_plot: bool = True) -> None:
         rs_vicon_x=rs_vicon_x,
         rs_vicon_y=rs_vicon_y,
         rs_vicon_yaw=rs_vicon_yaw,
-        rs_body_vx=rs_body_vx,
-        rs_body_vy=rs_body_vy,
-        rs_r=rs_r,
         sim_t=sim_t,
         core_t=arrays_to_save.get("core_t"),
-        core_speed=arrays_to_save.get("core_speed"),
-        rs_core_speed=resampled_arrays.get("rs_core_speed"),
         odom_t=arrays_to_save.get("odom_t"),
-        odom_x=arrays_to_save.get("odom_x"),
-        odom_y=arrays_to_save.get("odom_y"),
-        rs_odom_x=resampled_arrays.get("rs_odom_x"),
-        rs_odom_y=resampled_arrays.get("rs_odom_y"),
     )
 
     # --- Summary plot ---
@@ -466,18 +492,9 @@ def validate(
     rs_vicon_x,
     rs_vicon_y,
     rs_vicon_yaw,
-    rs_body_vx,
-    rs_body_vy,
-    rs_r,
     sim_t,
     core_t,
-    core_speed,
-    rs_core_speed,
     odom_t,
-    odom_x,
-    odom_y,
-    rs_odom_x,
-    rs_odom_y,
 ):
     """Print PASS/WARN validation checks to stdout."""
     print("\n--- Validation ---")
