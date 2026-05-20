@@ -75,6 +75,7 @@ def generate_launch_description():
         executable="recovery_node",
         name="recovery_node",
         parameters=[vesc_config, recovery_config],
+        emulate_tty=True,
     )
 
     ld = LaunchDescription([vicon_server_la, const_v_la])
