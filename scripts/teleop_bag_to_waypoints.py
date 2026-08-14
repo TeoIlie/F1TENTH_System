@@ -8,6 +8,7 @@ replay node can publish at a fixed cadence the mux/VESC expect.
 
 Usage:
     python3 teleop_bag_to_waypoints.py <bag_dir> [--rate 100] [--smooth-steer-tau 0.02]
+                                                 [--scale-speed 1.0] [--scale-steer 1.0]
                                                  [--start 1.5] [--end 8.0]
 
 Examples:
@@ -20,12 +21,20 @@ Examples:
     # Disable steering smoothing, drop output to 50 Hz
     python3 teleop_bag_to_waypoints.py ~/bags/teleop_2026_05_20 --rate 50 --smooth-steer-tau 0
 
+    # Replay the same maneuver at half speed and 70% of the steering magnitude
+    python3 teleop_bag_to_waypoints.py ~/bags/teleop_2026_05_20 --scale-speed 0.5 --scale-steer 0.7
+
 Output: <bag_dir>/teleop_waypoints.csv with columns:
     t_rel, speed, steering_angle
 
 t_rel starts at 0 at the first non-zero speed command. The window is trimmed
 to [first_nonzero, last_nonzero] of speed. Steering is low-pass filtered with
 a 1st-order IIR (default tau=20 ms) to remove stick noise — set tau=0 to disable.
+
+Each channel can be attenuated independently with --scale-speed / --scale-steer
+(1.0 = unchanged, 0.5 = half magnitude). Scaling is applied to the resampled
+signal, after the trim window has been derived from the raw speed, so a gain
+never changes which part of the bag gets exported.
 
 Also writes <bag_dir>/teleop_waypoints.png comparing raw vs resampled signals.
 """
@@ -129,6 +138,18 @@ def main():
         help="Low-pass time constant for speed, seconds. 0 disables (default 0.02)",
     )
     parser.add_argument(
+        "--scale-speed",
+        type=float,
+        default=1.0,
+        help="Multiply speed magnitude by this factor (default 1.0 = unchanged)",
+    )
+    parser.add_argument(
+        "--scale-steer",
+        type=float,
+        default=1.0,
+        help="Multiply steering magnitude by this factor (default 1.0 = unchanged)",
+    )
+    parser.add_argument(
         "--no-plot", action="store_true", help="Skip the comparison plot"
     )
     parser.add_argument(
@@ -144,6 +165,11 @@ def main():
         help="Trim end, seconds relative to first non-zero speed command",
     )
     args = parser.parse_args()
+
+    if args.scale_speed < 0 or args.scale_steer < 0:
+        sys.exit(
+            "--scale-speed/--scale-steer must be >= 0 (a negative gain reverses the command)"
+        )
 
     bag_dir = Path(args.bag_dir).resolve()
     if not bag_dir.is_dir():
@@ -189,6 +215,11 @@ def main():
     speed_zoh = speed_raw[idx]
     steer_zoh = steer_raw[idx]
 
+    # Magnitude scaling (before the low-pass; the IIR is linear so the order is immaterial,
+    # but this keeps the pre-filter plot trace in the same units as the CSV)
+    speed_zoh = speed_zoh * args.scale_speed
+    steer_zoh = steer_zoh * args.scale_steer
+
     # Low-pass on the uniform grid
     speed_out = lowpass(speed_zoh, dt, args.smooth_speed_tau)
     steer_out = lowpass(steer_zoh, dt, args.smooth_steer_tau)
@@ -198,10 +229,16 @@ def main():
     trim_lo = args.start if args.start is not None else 0.0
     trim_hi = args.end if args.end is not None else active_t_end - active_t_start
     trim_note = f" trimmed to [{trim_lo:.3f}, {trim_hi:.3f}]s" if trimmed else ""
+    scaled = args.scale_speed != 1.0 or args.scale_steer != 1.0
+    scale_note = (
+        f" scaled by speed x{args.scale_speed:g}, steer x{args.scale_steer:g}"
+        if scaled
+        else ""
+    )
     header = (
         f"Generated from {bag_dir.name} at {args.rate:.1f} Hz "
         f"(speed tau={args.smooth_speed_tau}s, steer tau={args.smooth_steer_tau}s)"
-        f"{trim_note}\n"
+        f"{trim_note}{scale_note}\n"
         "t_rel,speed,steering_angle"
     )
     np.savetxt(
@@ -213,12 +250,19 @@ def main():
         fmt=("%.4f", "%.6f", "%.6f"),
     )
     print(f"Wrote {out_csv} ({len(grid)} samples, {grid[-1]:.2f}s)")
+    if scaled:
+        print(
+            f"  NOTE: magnitudes scaled — speed x{args.scale_speed:g}, "
+            f"steer x{args.scale_steer:g}"
+        )
 
     if args.no_plot:
         return
 
     fig, axes = plt.subplots(2, 1, figsize=(12, 6), sharex=True)
     t_raw_rel = t_raw - t_start
+    speed_scale_lbl = f", x{args.scale_speed:g}" if args.scale_speed != 1.0 else ""
+    steer_scale_lbl = f", x{args.scale_steer:g}" if args.scale_steer != 1.0 else ""
 
     ax = axes[0]
     ax.step(
@@ -237,7 +281,7 @@ def main():
         speed_out,
         linewidth=1.2,
         color="C3",
-        label=f"resampled (tau={args.smooth_speed_tau}s)",
+        label=f"resampled (tau={args.smooth_speed_tau}s{speed_scale_lbl})",
     )
     ax.axvspan(grid[0], grid[-1], color="gray", alpha=0.08, label="active window")
     ax.set_ylabel("speed (m/s)")
@@ -266,7 +310,7 @@ def main():
         np.degrees(steer_out),
         linewidth=1.2,
         color="C3",
-        label=f"resampled (tau={args.smooth_steer_tau}s)",
+        label=f"resampled (tau={args.smooth_steer_tau}s{steer_scale_lbl})",
     )
     ax.set_xlabel("t_rel (s)")
     ax.set_ylabel("steering (deg)")
